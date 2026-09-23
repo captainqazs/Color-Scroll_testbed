@@ -4,20 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Color Scroll</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body, html {
       width: 100%;
       height: 100%;
+      margin: 0;
+      padding: 0;
       overflow: hidden;
-      touch-action: none; /* Prevents pull-to-refresh */
+      touch-action: none; /* Prevents mobile browser pull-to-refresh */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     #app {
@@ -27,66 +29,43 @@
       background-color: hsl(0, 35%, 82%);
     }
 
-    /* Minimal Floating Palette Selector Button */
-    .menu-btn {
-      position: absolute;
-      top: 1.5rem;
-      right: 1.5rem;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
+    /* Frosted glass utility class */
+    .glassmorphism {
       background: rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      z-index: 10;
-      opacity: 0.5;
-      transition: opacity 0.3s ease;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     }
 
-    .menu-btn:hover, .menu-btn:active {
-      opacity: 1;
+    .glass-dark {
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
     }
 
-    /* SVG icon inside button */
-    .menu-btn svg {
-      width: 18px;
-      height: 18px;
-      fill: rgba(0, 0, 0, 0.6);
-    }
-
-    /* Hidden Palette Tray */
-    .palette-tray {
-      position: absolute;
-      top: 4.5rem;
-      right: 1.5rem;
-      background: rgba(255, 255, 255, 0.3);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 18px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      z-index: 10;
+    /* Smooth scale and opacity transitions for modal */
+    .modal-enter {
       opacity: 0;
-      pointer-events: none;
-      transform: translateY(-10px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform: scale(0.92);
     }
 
-    .palette-tray.open {
+    .modal-visible {
       opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
+      transform: scale(1);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Individual Palette Dot Option */
+    .modal-exit {
+      opacity: 0;
+      transform: scale(0.95);
+      pointer-events: none;
+      transition: opacity 0.25s ease-in, transform 0.25s ease-in;
+    }
+
+    /* Individual Palette Selection Dots */
     .palette-option {
       width: 28px;
       height: 28px;
@@ -101,49 +80,82 @@
     }
 
     .palette-option.active {
-      border-color: rgba(0, 0, 0, 0.5);
+      border-color: rgba(0, 0, 0, 0.6);
     }
   </style>
 </head>
-<body>
+<body class="relative w-full h-full select-none overflow-hidden">
 
-  <div id="app"></div>
+  <div id="app" class="absolute inset-0 w-full h-full"></div>
 
-  <!-- Palette Menu Icon -->
-  <div class="menu-btn" id="menuBtn">
-    <svg viewBox="0 0 24 24">
+  <!-- Floating Palette Selector Button -->
+  <button id="menuBtn" aria-label="Open Palette Selector" class="absolute top-6 right-6 w-11 h-11 rounded-full glassmorphism flex items-center justify-center z-20 opacity-70 hover:opacity-100 active:scale-95 transition-all duration-200">
+    <svg class="w-5 h-5 fill-slate-800" viewBox="0 0 24 24">
       <path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
     </svg>
-  </div>
+  </button>
 
-  <!-- Palette Options Popover -->
-  <div class="palette-tray" id="paletteTray"></div>
+  <!-- Palette Tray Popover -->
+  <div id="paletteTray" class="absolute top-20 right-6 glassmorphism rounded-2xl p-2.5 flex flex-col gap-2.5 z-20 opacity-0 pointer-events-none -translate-y-2 transition-all duration-300"></div>
+
+  <!-- Welcome Pop-up Overlay -->
+  <div id="modalOverlay" class="fixed inset-0 z-30 flex items-center justify-center p-6 bg-black/10 backdrop-blur-[2px]">
+    <div id="welcomeModal" class="relative w-full max-w-sm glassmorphism rounded-3xl p-7 text-slate-800 modal-enter modal-visible">
+      
+      <!-- Close Button 'X' -->
+      <button id="closeModalBtn" aria-label="Close welcome popup" class="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-90 transition-all text-slate-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
+      <!-- App Title -->
+      <h1 class="text-2xl font-semibold tracking-tight text-slate-900 mb-3 pr-6">Color Scroll</h1>
+
+      <!-- App Blurb -->
+      <p id="modalBlurb" class="text-sm leading-relaxed text-slate-700/90 font-normal">
+        Scroll without the noise. A calming alternative for those moments when you feel the urge to mindlessly scroll.
+      </p>
+
+      <!-- Minimal Start Button -->
+      <button id="getStartedBtn" class="mt-6 w-full py-2.5 px-4 rounded-xl bg-slate-900/10 hover:bg-slate-900/15 active:scale-98 text-slate-900 text-xs tracking-wider uppercase font-medium transition-all text-center">
+        Begin Scroll
+      </button>
+
+    </div>
+  </div>
 
   <script>
     const app = document.getElementById('app');
     const menuBtn = document.getElementById('menuBtn');
     const paletteTray = document.getElementById('paletteTray');
+    const welcomeModal = document.getElementById('welcomeModal');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const getStartedBtn = document.getElementById('getStartedBtn');
 
-    // Preset Palettes (Sat = Saturation, Light = Lightness)
+    // Preset Palettes Configuration
     const palettes = [
-      { name: "Warm Pastel", sat: 35, light: 82, preview: "hsl(0, 35%, 82%)" },
-      { name: "Soft Muted",  sat: 20, light: 75, preview: "hsl(180, 20%, 75%)" },
-      { name: "Vibrant Light", sat: 65, light: 85, preview: "hsl(300, 65%, 85%)" },
-      { name: "Warm Dusk",    sat: 30, light: 50, preview: "hsl(30, 30%, 50%)" },
-      { name: "Deep Glow",    sat: 45, light: 30, preview: "hsl(220, 45%, 30%)" },
-      { name: "Night Mode",   sat: 25, light: 15, preview: "hsl(260, 25%, 15%)" }
+      { name: "Warm Pastel", sat: 35, light: 82, preview: "hsl(0, 35%, 82%)", darkTheme: false },
+      { name: "Soft Muted",  sat: 20, light: 75, preview: "hsl(180, 20%, 75%)", darkTheme: false },
+      { name: "Vibrant Light", sat: 65, light: 85, preview: "hsl(300, 65%, 85%)", darkTheme: false },
+      { name: "Warm Dusk",    sat: 30, light: 50, preview: "hsl(30, 30%, 50%)", darkTheme: true },
+      { name: "Deep Glow",    sat: 45, light: 30, preview: "hsl(220, 45%, 30%)", darkTheme: true },
+      { name: "Night Mode",   sat: 25, light: 15, preview: "hsl(260, 25%, 15%)", darkTheme: true }
     ];
 
     let currentPaletteIndex = 0;
     let currentHue = 0;
     let startY = 0;
     let isDragging = false;
+    let isModalOpen = true;
 
-    // Build Palette Selector Buttons
+    // Build Palette Selector Dots
     palettes.forEach((palette, index) => {
       const option = document.createElement('div');
       option.className = `palette-option ${index === 0 ? 'active' : ''}`;
       option.style.backgroundColor = palette.preview;
+      option.title = palette.name;
       
       option.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -152,25 +164,46 @@
         document.querySelectorAll('.palette-option').forEach(el => el.classList.remove('active'));
         option.classList.add('active');
         
-        updateColor(0); // Refresh screen with new palette
-        paletteTray.classList.remove('open');
+        updateColor(0); // Refresh theme
+        paletteTray.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
       });
 
       paletteTray.appendChild(option);
     });
 
-    // Toggle menu dropdown
+    // Toggle Palette Menu Dropdown
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      paletteTray.classList.toggle('open');
+      paletteTray.classList.toggle('opacity-0');
+      paletteTray.classList.toggle('pointer-events-none');
+      paletteTray.classList.toggle('-translate-y-2');
     });
 
-    // Hide menu if user taps background
-    window.addEventListener('click', () => {
-      paletteTray.classList.remove('open');
+    // Dismiss Palette Menu on backdrop click
+    window.addEventListener('click', (e) => {
+      if (!paletteTray.contains(e.target) && e.target !== menuBtn) {
+        paletteTray.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
+      }
     });
 
-    // Smooth Color Transition Engine
+    // Dismiss Welcome Modal Functions
+    function dismissModal() {
+      if (!isModalOpen) return;
+      isModalOpen = false;
+
+      welcomeModal.classList.remove('modal-visible');
+      welcomeModal.classList.add('modal-exit');
+      modalOverlay.classList.add('opacity-0', 'pointer-events-none', 'transition-opacity', 'duration-300');
+
+      setTimeout(() => {
+        modalOverlay.style.display = 'none';
+      }, 300);
+    }
+
+    closeModalBtn.addEventListener('click', dismissModal);
+    getStartedBtn.addEventListener('click', dismissModal);
+
+    // Color Calculation Engine
     function updateColor(deltaY) {
       const sensitivity = 0.08;
       currentHue = (currentHue + (deltaY * sensitivity)) % 360;
@@ -178,16 +211,28 @@
 
       const activePalette = palettes[currentPaletteIndex];
       app.style.backgroundColor = `hsl(${currentHue}, ${activePalette.sat}%, ${activePalette.light}%)`;
+
+      // Adapt menu icon styling if using dark theme palettes
+      if (activePalette.darkTheme) {
+        menuBtn.classList.add('glass-dark');
+        menuBtn.classList.remove('glassmorphism');
+        menuBtn.querySelector('svg').style.fill = 'rgba(255,255,255,0.85)';
+      } else {
+        menuBtn.classList.add('glassmorphism');
+        menuBtn.classList.remove('glass-dark');
+        menuBtn.querySelector('svg').style.fill = 'rgba(30,41,59,0.9)';
+      }
     }
 
-    // Mobile Touch Gestures
+    // Touch Scroll Event Handlers (Mobile)
     window.addEventListener('touchstart', (e) => {
+      if (isModalOpen) return;
       startY = e.touches[0].clientY;
       isDragging = true;
     }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
+      if (!isDragging || isModalOpen) return;
       const currentY = e.touches[0].clientY;
       const deltaY = startY - currentY;
       
@@ -195,25 +240,32 @@
       startY = currentY;
     }, { passive: true });
 
-    window.addEventListener('touchend', () => isDragging = false);
+    window.addEventListener('touchend', () => { isDragging = false; });
 
-    // Desktop Mouse / Scroll Wheel
-    window.addEventListener('wheel', (e) => updateColor(e.deltaY * 0.5), { passive: true });
+    // Mouse Drag & Wheel Handlers (Desktop)
+    window.addEventListener('wheel', (e) => {
+      if (isModalOpen) return;
+      updateColor(e.deltaY * 0.5);
+    }, { passive: true });
 
     window.addEventListener('mousedown', (e) => {
-      if (e.target.closest('#menuBtn') || e.target.closest('#paletteTray')) return;
+      if (isModalOpen || e.target.closest('#menuBtn') || e.target.closest('#paletteTray')) return;
       startY = e.clientY;
       isDragging = true;
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
+      if (!isDragging || isModalOpen) return;
       const deltaY = startY - e.clientY;
       updateColor(deltaY);
       startY = e.clientY;
     });
 
-    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Initialize Initial Color State
+    updateColor(0);
   </script>
 </body>
 </html>
+```
