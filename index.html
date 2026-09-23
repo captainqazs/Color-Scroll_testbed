@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Gentle Scroll</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none; /* Prevents pull-to-refresh */
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      transition: background-color 0.4s ease-out;
+      background-color: hsl(0, 35%, 82%);
+    }
+
+    /* Minimal Floating Palette Selector Button */
+    .menu-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 10;
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+    }
+
+    .menu-btn:hover, .menu-btn:active {
+      opacity: 1;
+    }
+
+    /* SVG icon inside button */
+    .menu-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: rgba(0, 0, 0, 0.6);
+    }
+
+    /* Hidden Palette Tray */
+    .palette-tray {
+      position: absolute;
+      top: 4.5rem;
+      right: 1.5rem;
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 18px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .palette-tray.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    /* Individual Palette Dot Option */
+    .palette-option {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .palette-option:active {
+      transform: scale(0.9);
+    }
+
+    .palette-option.active {
+      border-color: rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app"></div>
+
+  <!-- Palette Menu Icon -->
+  <div class="menu-btn" id="menuBtn">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+    </svg>
+  </div>
+
+  <!-- Palette Options Popover -->
+  <div class="palette-tray" id="paletteTray"></div>
+
+  <script>
+    const app = document.getElementById('app');
+    const menuBtn = document.getElementById('menuBtn');
+    const paletteTray = document.getElementById('paletteTray');
+
+    // Preset Palettes (Sat = Saturation, Light = Lightness)
+    const palettes = [
+      { name: "Warm Pastel", sat: 35, light: 82, preview: "hsl(0, 35%, 82%)" },
+      { name: "Soft Muted",  sat: 20, light: 75, preview: "hsl(180, 20%, 75%)" },
+      { name: "Vibrant Light", sat: 65, light: 85, preview: "hsl(300, 65%, 85%)" },
+      { name: "Warm Dusk",    sat: 30, light: 50, preview: "hsl(30, 30%, 50%)" },
+      { name: "Deep Glow",    sat: 45, light: 30, preview: "hsl(220, 45%, 30%)" },
+      { name: "Night Mode",   sat: 25, light: 15, preview: "hsl(260, 25%, 15%)" }
+    ];
+
+    let currentPaletteIndex = 0;
+    let currentHue = 0;
+    let startY = 0;
+    let isDragging = false;
+
+    // Build Palette Selector Buttons
+    palettes.forEach((palette, index) => {
+      const option = document.createElement('div');
+      option.className = `palette-option ${index === 0 ? 'active' : ''}`;
+      option.style.backgroundColor = palette.preview;
+      
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentPaletteIndex = index;
+        
+        document.querySelectorAll('.palette-option').forEach(el => el.classList.remove('active'));
+        option.classList.add('active');
+        
+        updateColor(0); // Refresh screen with new palette
+        paletteTray.classList.remove('open');
+      });
+
+      paletteTray.appendChild(option);
+    });
+
+    // Toggle menu dropdown
+    menuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      paletteTray.classList.toggle('open');
+    });
+
+    // Hide menu if user taps background
+    window.addEventListener('click', () => {
+      paletteTray.classList.remove('open');
+    });
+
+    // Smooth Color Transition Engine
+    function updateColor(deltaY) {
+      const sensitivity = 0.08;
+      currentHue = (currentHue + (deltaY * sensitivity)) % 360;
+      if (currentHue < 0) currentHue += 360;
+
+      const activePalette = palettes[currentPaletteIndex];
+      app.style.backgroundColor = `hsl(${currentHue}, ${activePalette.sat}%, ${activePalette.light}%)`;
+    }
+
+    // Mobile Touch Gestures
+    window.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      isDragging = true;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const currentY = e.touches[0].clientY;
+      const deltaY = startY - currentY;
+      
+      updateColor(deltaY);
+      startY = currentY;
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => isDragging = false);
+
+    // Desktop Mouse / Scroll Wheel
+    window.addEventListener('wheel', (e) => updateColor(e.deltaY * 0.5), { passive: true });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.target.closest('#menuBtn') || e.target.closest('#paletteTray')) return;
+      startY = e.clientY;
+      isDragging = true;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaY = startY - e.clientY;
+      updateColor(deltaY);
+      startY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+  </script>
+</body>
+</html>
